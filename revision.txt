@@ -1,0 +1,573 @@
+git clone <url>
+to copy git code in your folder 
+--------------------------------------------------------------------
+✅hardhat setup
+ 
+ ✅yarn add  --dev hardhat
+ ✅yarn hardhat
+ ✅then setup your project
+ -----------------------------------------------------------------
+ Write your contract
+ check solidity version in hardhat config.js
+ run yarn hardhat compile
+ it show you somw error of library if not present then install them from npm
+ 
+ yarn add --dev @chainlink/contracts
+compile your code
+-------------------------------------------------------------------
+deployment :-
+now we don't deploy manually we use plugin
+yarn add --dev hardhat-deploy
+add require("hardhat-deploy") in config.js
+
+mkdir deploy
+this is our deploy folder where hardhat module look for code that deploy our contract
+
+now we use ether to deploy our code so we need to install hardhat-deploy-ethers
+which add extra feature to deploy our contract
+yarn add --dev   @nomiclabs/hardhat-ethers@npm:hardhat-deploy-ethers ethers
+Which means you then need to do require("@nomiclabs/hardhat-ethers") instead of require("hardhat-deploy-ethers") in your hardhat.config.js file.
+
+
+
+
+so now when we use yarn hardhat deploy all the code sequencly  present in deploy directory deploy
+
+we creat 01-deploy-fund-me.js in deploy folder and starting writing code in it
+
+hre is harhat hat run time environment and when we run deploy script hardhat automatically calls this function and just passes the hardhat object in it 
+{similar to {ethers,run, networks} = requie("hardhat") come's into our contract from harhat, }.
+now instead of hardhat it come from hre basically i.e, the same thing.
+
+
+add this in config.js
+{{
+ namedAccounts: {
+    deployer:{
+      default:0,
+    },
+    user :{
+      default: 1,
+    }
+  }
+}}
+
+
+and out 01-deploy-fund-me.js look like this:-
+const { network } = require("hardhat");
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy} = deployments;
+    const {deployer} = await getNamedAccounts();
+    const childId = network.config.chainId;
+  };
+
+
+
+now if we want to change price in dollar we can do it on goerli beacause of chinlink addresses but what we do in case of localhost.
+we can do it by using mocking.
+{for more info read 10:20 tp 10.25}
+
+
+
+out contract become like {{{{{{{{{{{{{{
+    first:- 
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.8;
+
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
+// Why is this a library and not abstract?
+// Why not an interface?
+library PriceConverter {
+    // We could make this public, but then we'd have to deploy it
+    function getPrice(AggregatorV3Interface priceFeed) internal view returns (uint256) {
+
+       
+        (, int256 answer, , , ) = priceFeed.latestRoundData();
+        // ETH/USD rate in 18 digit
+        return uint256(answer * 10000000000);
+        // or (Both will do the same thing)
+        // return uint256(answer * 1e10); // 1* 10 ** 10 == 10000000000
+    }
+
+    // 1000000000
+    function getConversionRate(uint256 ethAmount, AggregatorV3Interface priceFeed)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 ethPrice = getPrice(priceFeed);
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1000000000000000000;
+        // or (Both will do the same thing)
+        // uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18; // 1 * 10 ** 18 == 1000000000000000000
+        // the actual ETH/USD conversion rate, after adjusting the extra 0s.
+        return ethAmountInUsd;
+    }
+}
+-------------------------------------
+second:-
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.8;
+
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "./PriceConverter.sol";
+
+error NotOwner();
+
+contract FundMe {
+    using PriceConverter for uint256;
+
+    mapping(address => uint256) public addressToAmountFunded;
+    address[] public funders;
+
+    // Could we make this constant?  /* hint: no! We should make it immutable! */
+    address public /* immutable */ i_owner;
+    uint256 public constant MINIMUM_USD = 50 * 10 ** 18;
+    
+    AggregatorV3Interface public priceFeed;
+    constructor(address priceFeedAddress) {
+        i_owner = msg.sender;
+        priceFeed = AggregatorV3Interface(priceFeedAddress);
+    }
+
+    function fund() public payable {
+        require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, "You need to spend more ETH!");
+        // require(PriceConverter.getConversionRate(msg.value) >= MINIMUM_USD, "You need to spend more ETH!");
+        addressToAmountFunded[msg.sender] += msg.value;
+        funders.push(msg.sender);
+    }
+    
+    // function getVersion() public view returns (uint256){
+    //     // ETH/USD price feed address of Goerli Network.
+    //     AggregatorV3Interface priceFeed = AggregatorV3Interface(0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e);
+    //     return priceFeed.version();
+    // }
+    
+    modifier onlyOwner {
+        // require(msg.sender == owner);
+        if (msg.sender != i_owner) revert NotOwner();
+        _;
+    }
+    
+    function withdraw() public onlyOwner {
+        for (uint256 funderIndex=0; funderIndex < funders.length; funderIndex++){
+            address funder = funders[funderIndex];
+            addressToAmountFunded[funder] = 0;
+        }
+        funders = new address[](0);
+        // // transfer
+        // payable(msg.sender).transfer(address(this).balance);
+        // // send
+        // bool sendSuccess = payable(msg.sender).send(address(this).balance);
+        // require(sendSuccess, "Send failed");
+        // call
+        (bool callSuccess, ) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, "Call failed");
+    }
+    // Explainer from: https://solidity-by-example.org/fallback/
+    // Ether is sent to contract
+    //      is msg.data empty?
+    //          /   \ 
+    //         yes  no
+    //         /     \
+    //    receive()?  fallback() 
+    //     /   \ 
+    //   yes   no
+    //  /        \
+    //receive()  fallback()
+
+    fallback() external payable {
+        fund();
+    }
+
+    receive() external payable {
+        fund();
+    }
+
+}
+}}}}}}}}}}}}}}
+
+
+So now we refector our contract and pass pricefeed in constructor according the network that we are on  
+
+
+now instead of contractfactory we use deploy function to deploy our code
+so instead of using direct address in our funtion we take the help of chailid and assign different different address for different chainId
+
+make file in root by name of helper-hardhat-config.js
+
+{{{{{{{{{{{
+    updated version of code:-
+    ---------------------------------------------------
+    helper-hardhat config.js
+    const networkConfig = {
+    5:{
+        name:"goerli",
+        ethUsdPriceFeed:"0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e",
+    },
+    137 :{
+        name:"polygon",
+        ethUsdPriceFeed:"0x0715A7794a1dc8e42615F059dD6e406A6594651A",
+    }
+}
+
+module.exports = {networkConfig}
+ -------------------------------------------
+ 01- deploy fund me.js :- 
+------
+// deploy/00_deploy_my_contract.js
+
+const { network } = require("hardhat");
+
+// module.exports = async (hre)=>{
+//     {getNamedAccounts, deployments}=hre
+// }
+const {networkConfig} = require("../helper-hardhat-config")
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy} = deployments;
+    const {deployer} = await getNamedAccounts();
+    const childId = network.config.chainId;
+    
+    const  ethUsdPriceFeedAddress = networkConfig[childId]["ethUsePriceFeed"];
+
+    const fundMe = await deploy('FundMe', {
+      from: deployer,
+      args: [], // we pass the price feed
+      log: true,
+    });
+  };
+//   module.exports.tags = ['MyContract'];
+
+}}}}}}}}}}}
+
+--------------------------------------------------------------
+ccreate 00-deploy-mocks.js in deploy folder
+
+{{{{{{{{{{{{{{{{{{{
+    const { network } = require("hardhat");
+const {networkConfig} = require("../helper-hardhat-config")
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy} = deployments;
+    const {deployer} = await getNamedAccounts();
+    const childId = network.config.chainId;
+}
+}}}}}}}}}}}}}}}}}}}
+
+we create different contract for testing in contracts 
+so mkdir in contracts by the name of test
+insite it create file MockV3AggregatorV3.sol
+
+for mock address go to below address and copy
+https://github.com/smartcontractkit/chainlink/blob/develop/contracts/src/v0.6/tests/MockV3Aggregator.sol
+
+instead of it we can take help of npm and write one line
+
+// SPDX-License-Identifier: MIT
+pragma solidity^0.6.0;
+import "@chainlink/contracts/src/v0.6/tests/MockV3Aggregator.sol";
+
+both are the same thing
+
+----------------------------------------------
+now to tackel differnet -differnt version on solidity
+we can add differnt version inside config.js
+
+  solidity: {
+    compilers :[{version:"0.8.8"},{version:"0.6.6"}],
+  },
+  run compile command
+  -----------------------------------------------
+  
+
+  now helper config.js become:-------
+  {
+const networkConfig = {
+    5:{
+        name:"goerli",
+        ethUsdPriceFeed:"0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e",
+    },
+    137 :{
+        name:"polygon",
+        ethUsdPriceFeed:"0x0715A7794a1dc8e42615F059dD6e406A6594651A",
+    }
+}
+//for local network
+const developmentChains = ["hardhat", "localhost"];
+const  DECIMALS = 8;
+const INITIAL_ANSWER= 200000000000;
+
+
+module.exports = {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER}
+  }
+
+
+  and 00 deploy mock become
+  const { network } = require("hardhat");
+const {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER} = require("../helper-hardhat-config")
+
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+    const childId = network.config.chainId;
+
+
+    if(developmentChains.includes(chainId)){
+        log("Local network detected! deploying mocks....")
+        await deploy('MockV3Aggregator', {
+            contract :"MockV3Aggregator",
+            from: deployer,
+            log: true,
+            args: [DECIMALS, INITIAL_ANSWER], // we pass the price feed
+          });
+          log("Mock deployed!")
+          log("---------------------------------------------------------------")
+    }
+}
+
+module.exports.tags = ["all", "mocks"]
+
+===================================================
+we add tage so we can decide which contract we want to compile or deploy 
+use command yarn hardhat deploy --tags mocks
+
+on place of includes chainid we can also able to use include natwrok.name
+
+=================================================
+
+
+
+finally all are become equal to 
+{{{{{{{{{{{{{{{{{
+    00:- 
+    const { network } = require("hardhat");
+const {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER} = require("../helper-hardhat-config")
+
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+    const chainId = network.config.chainId;
+
+
+    // if(developmentChains.includes(chainId)){
+    if(developmentChains.includes(network.name)){
+        log("Local network detected! deploying mocks....")
+        await deploy('MockV3Aggregator', {
+            contract :"MockV3Aggregator",
+            from: deployer,
+            log: true,
+            args: [DECIMALS, INITIAL_ANSWER], // we pass the price feed
+          });
+          log("Mock deployed!")
+          log("---------------------------------------------------------------")
+    }
+}
+
+module.exports.tags = ["all", "mocks"]
+--------------------------------------------------
+01:-
+// deploy/00_deploy_my_contract.js
+
+const { network } = require("hardhat");
+
+// module.exports = async (hre)=>{
+//     {getNamedAccounts, deployments}=hre
+// }
+const {networkConfig, developmentChains} = require("../helper-hardhat-config")
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+    const childId = network.config.chainId;
+    
+    // const  ethUsdPriceFeedAddress = networkConfig[childId]["ethUsePriceFeed"];
+     let ethUsdPriceFeedAddress;
+     if(developmentChains.includes(network.name)){
+        const ethUsaAggregator = await deployments.get("MockV3Aggregator")
+        // ethUsdPriceFeedAddress = ethUsaAggregator.;
+        ethUsdPriceFeedAddress = ethUsaAggregator.address
+
+     }else{
+        ethUsdPriceFeedAddress =  networkConfig[childId]["ethUsePriceFeed"];
+     }
+
+    const fundMe = await deploy('FundMe', {
+      from: deployer,
+      args: [ethUsdPriceFeedAddress], // we pass the price feed
+      log: true,
+    });
+    log("=========================================================")
+  };
+
+  module.exports.tags = ["all", "mocks"]
+//   module.exports.tags = ['MyContract'];
+}}}}}}}}}}}}}}}}}
+
+finally deploy using yarn hardhat deploy
+==============================================================
+so now whenever we run yarn hardhat node
+our code automatically deploy to local node
+==============================================================
+mkdir utils 
+mkfile verify.js in it
+
+add this in verify.js
+{{{{{{{{{{{{{{{{{{
+    const {run} = require('hardhat');
+const verify = async (contractAddress, args) => {
+  console.log("Verifying contract...")
+  try {
+    await run("verify:verify", {
+      address: contractAddress,
+      constructorArguments: args,
+    })
+  } catch (e) {
+    if (e.message.toLowerCase().includes("already verified")) {
+      console.log("Already Verified!")
+    } else {
+      console.log(e)
+    }
+  }
+}
+
+module.exports = {verify}
+}}}}}}}}}}}}}}}}}}
+--------------------------------------------------------------------------------------
+
+
+helper-hardhat-config.js{
+const networkConfig = {
+    5: {
+        name: "goerli",
+        ethUsdPriceFeed: "0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e",
+    },
+}
+//for local network
+const developmentChains = ["hardhat", "localhost"];
+const  DECIMALS = 8;
+const INITIAL_ANSWER= 200000000000;
+
+
+module.exports = {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER}
+}
+
+-------------
+hardhat.config.js{
+  require("@nomicfoundation/hardhat-toolbox");
+require("hardhat-deploy")
+require("@nomiclabs/hardhat-ethers")
+/** @type import('hardhat/config').HardhatUserConfig */
+module.exports = {
+
+defaultNetwork : "hardhat",
+  networks:{
+    hardhat: {
+      chainId: 31337,
+  },
+  goerli: {
+    url: "https://eth-goerli.g.alchemy.com/v2/uMgiZTr_CU2rE20g5ocB-WvoC53jhl3k",
+    accounts:["b5a33e6904854df012b4eca463423a37eb1d7cc46e7d80e61b7816c2a8677500"],
+      chainId: 5,
+      blockConfirmations: 6,
+  },
+  },
+  solidity: {
+    compilers :[{version:"0.8.8"},{version:"0.6.6"}],
+  },
+  etherscan: {
+    apiKey:"FHYZMYZ7552U5SJAVCGHWWK25W95K6M4J3",
+},
+  namedAccounts: {
+    deployer:{
+      default:0,
+    },
+    user :{
+      default: 1,
+    }
+  }
+
+};
+}
+
+00-deploy-mocks.js{
+  const { network } = require("hardhat");
+const {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER} = require("../helper-hardhat-config")
+
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+    const chainId = network.config.chainId;
+
+
+    // if(developmentChains.includes(chainId)){
+    if(developmentChains.includes(network.name)){
+        log("Local network detected! deploying mocks....")
+        await deploy('MockV3Aggregator', {
+            contract :"MockV3Aggregator",
+            from: deployer,
+            log: true,
+            args: [DECIMALS, INITIAL_ANSWER], // we pass the price feed
+          });
+          log("Mock deployed!")
+          log("---------------------------------------------------------------")
+    }
+}
+
+module.exports.tags = ["all", "mocks"]
+}
+
+01-deploy-fund-me.js{
+  // deploy/00_deploy_my_contract.js
+
+const { network } = require("hardhat")
+const { networkConfig, developmentChains } = require("../helper-hardhat-config")
+const { verify } = require("../utils/verify")
+
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+    const chainId = network.config.chainId;
+
+    // const  ethUsdPriceFeedAddress = networkConfig[childId]["ethUsePriceFeed"];
+     let ethUsdPriceFeedAddress;
+     if(developmentChains.includes(network.name)){
+        const ethUsaAggregator = await deployments.get("MockV3Aggregator")
+        // ethUsdPriceFeedAddress = ethUsaAggregator.;
+        ethUsdPriceFeedAddress = ethUsaAggregator.address
+
+     }else{
+      ethUsdPriceFeedAddress =  networkConfig[chainId]["ethUsdPriceFeed"];
+         }
+    const args =[ethUsdPriceFeedAddress];
+    const fundMe = await deploy('FundMe', {
+      from: deployer,
+      args: args, // we pass the price feed
+      log: true,
+      waitConfirmations : network.config.blockConfirmations || 1,
+    });
+
+         
+    if(!developmentChains.includes(network.name) && "FHYZMYZ7552U5SJAVCGHWWK25W95K6M4J3" ){
+           await verify(fundMe.address, [ethUsdPriceFeedAddress]);
+    }
+      
+    log("=========================================================")
+  };
+
+  module.exports.tags = ["all", "fundme"]
+//   module.exports.tags = ['MyContract'];
+}
+====================================================================================================
+            learn about solidity style guide
+==================================================================================================
+delete present all file from test  folder
+and create folder by the name of staging
+
+create Fundme.test.js
+
+{{{{{{{{{{{{{{{{{
+  learn this testing at the ending
+}}}}}}}}}}}}}}}}}
+
+====================================================================================================
+11.08  full  se do testing again.
+
+ 
