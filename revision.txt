@@ -123,86 +123,21 @@ import "@chainlink/contracts/src/v0.6/tests/MockV3Aggregator.sol";
     "3fm"
   }
 
+now complete the 00-deploy-mocks.js
 ======================================================
 we add tage so we can decide which contract we want to compile or deploy 
-use command yarn hardhat deploy --tags mocks
-
+module.exports.tags = ["all", "mocks"]
+use command yarn hardhat deploy --tags <tag name>
 on place of includes chainid we can also able to use include natwrok.name
 
 =================================================
-
-
-
-finally all are become equal to 
-{{{{{{{{{{{{{{{{{
-    00:- 
-    const { network } = require("hardhat");
-const {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER} = require("../helper-hardhat-config")
-
-module.exports = async ({getNamedAccounts, deployments}) => {
-    const {deploy, log} = deployments;
-    const {deployer} = await getNamedAccounts();
-    const chainId = network.config.chainId;
-
-
-    // if(developmentChains.includes(chainId)){
-    if(developmentChains.includes(network.name)){
-        log("Local network detected! deploying mocks....")
-        await deploy('MockV3Aggregator', {
-            contract :"MockV3Aggregator",
-            from: deployer,
-            log: true,
-            args: [DECIMALS, INITIAL_ANSWER], // we pass the price feed
-          });
-          log("Mock deployed!")
-          log("---------------------------------------------------------------")
-    }
-}
-
-module.exports.tags = ["all", "mocks"]
---------------------------------------------------
-01:-
-// deploy/00_deploy_my_contract.js
-
-const { network } = require("hardhat");
-
-// module.exports = async (hre)=>{
-//     {getNamedAccounts, deployments}=hre
-// }
-const {networkConfig, developmentChains} = require("../helper-hardhat-config")
-module.exports = async ({getNamedAccounts, deployments}) => {
-    const {deploy, log} = deployments;
-    const {deployer} = await getNamedAccounts();
-    const childId = network.config.chainId;
-    
-    // const  ethUsdPriceFeedAddress = networkConfig[childId]["ethUsePriceFeed"];
-     let ethUsdPriceFeedAddress;
-     if(developmentChains.includes(network.name)){
-        const ethUsaAggregator = await deployments.get("MockV3Aggregator")
-        // ethUsdPriceFeedAddress = ethUsaAggregator.;
-        ethUsdPriceFeedAddress = ethUsaAggregator.address
-
-     }else{
-        ethUsdPriceFeedAddress =  networkConfig[childId]["ethUsePriceFeed"];
-     }
-
-    const fundMe = await deploy('FundMe', {
-      from: deployer,
-      args: [ethUsdPriceFeedAddress], // we pass the price feed
-      log: true,
-    });
-    log("=========================================================")
-  };
-
-  module.exports.tags = ["all", "mocks"]
-//   module.exports.tags = ['MyContract'];
-}}}}}}}}}}}}}}}}}
 
 finally deploy using yarn hardhat deploy
 ==============================================================
 so now whenever we run yarn hardhat node
 our code automatically deploy to local node
 ==============================================================
+
 mkdir utils 
 mkfile verify.js in it
 
@@ -228,129 +163,11 @@ const verify = async (contractAddress, args) => {
 module.exports = {verify}
 }}}}}}}}}}}}}}}}}}
 --------------------------------------------------------------------------------------
+Now we can able to deploy out contract on any network by just changing the hardhat config and  helper hardhat config.js
+just use command for deployment
 
-
-helper-hardhat-config.js{
-const networkConfig = {
-    5: {
-        name: "goerli",
-        ethUsdPriceFeed: "0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e",
-    },
-}
-//for local network
-const developmentChains = ["hardhat", "localhost"];
-const  DECIMALS = 8;
-const INITIAL_ANSWER= 200000000000;
-
-
-module.exports = {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER}
-}
-
--------------
-hardhat.config.js{
-  require("@nomicfoundation/hardhat-toolbox");
-require("hardhat-deploy")
-require("@nomiclabs/hardhat-ethers")
-/** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
-
-defaultNetwork : "hardhat",
-  networks:{
-    hardhat: {
-      chainId: 31337,
-  },
-  goerli: {
-    url: "https://eth-goerli.g.alchemy.com/v2/uMgiZTr_CU2rE20g5ocB-WvoC53jhl3k",
-    accounts:["b5a33e6904854df012b4eca463423a37eb1d7cc46e7d80e61b7816c2a8677500"],
-      chainId: 5,
-      blockConfirmations: 6,
-  },
-  },
-  solidity: {
-    compilers :[{version:"0.8.8"},{version:"0.6.6"}],
-  },
-  etherscan: {
-    apiKey:"FHYZMYZ7552U5SJAVCGHWWK25W95K6M4J3",
-},
-  namedAccounts: {
-    deployer:{
-      default:0,
-    },
-    user :{
-      default: 1,
-    }
-  }
-
-};
-}
-
-00-deploy-mocks.js{
-  const { network } = require("hardhat");
-const {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER} = require("../helper-hardhat-config")
-
-module.exports = async ({getNamedAccounts, deployments}) => {
-    const {deploy, log} = deployments;
-    const {deployer} = await getNamedAccounts();
-    const chainId = network.config.chainId;
-
-
-    // if(developmentChains.includes(chainId)){
-    if(developmentChains.includes(network.name)){
-        log("Local network detected! deploying mocks....")
-        await deploy('MockV3Aggregator', {
-            contract :"MockV3Aggregator",
-            from: deployer,
-            log: true,
-            args: [DECIMALS, INITIAL_ANSWER], // we pass the price feed
-          });
-          log("Mock deployed!")
-          log("---------------------------------------------------------------")
-    }
-}
-
-module.exports.tags = ["all", "mocks"]
-}
-
-01-deploy-fund-me.js{
-  // deploy/00_deploy_my_contract.js
-
-const { network } = require("hardhat")
-const { networkConfig, developmentChains } = require("../helper-hardhat-config")
-const { verify } = require("../utils/verify")
-
-module.exports = async ({getNamedAccounts, deployments}) => {
-    const {deploy, log} = deployments;
-    const {deployer} = await getNamedAccounts();
-    const chainId = network.config.chainId;
-
-    // const  ethUsdPriceFeedAddress = networkConfig[childId]["ethUsePriceFeed"];
-     let ethUsdPriceFeedAddress;
-     if(developmentChains.includes(network.name)){
-        const ethUsaAggregator = await deployments.get("MockV3Aggregator")
-        // ethUsdPriceFeedAddress = ethUsaAggregator.;
-        ethUsdPriceFeedAddress = ethUsaAggregator.address
-
-     }else{
-      ethUsdPriceFeedAddress =  networkConfig[chainId]["ethUsdPriceFeed"];
-         }
-    const args =[ethUsdPriceFeedAddress];
-    const fundMe = await deploy('FundMe', {
-      from: deployer,
-      args: args, // we pass the price feed
-      log: true,
-      waitConfirmations : network.config.blockConfirmations || 1,
-    });
-
-         
-    if(!developmentChains.includes(network.name) && "FHYZMYZ7552U5SJAVCGHWWK25W95K6M4J3" ){
-           await verify(fundMe.address, [ethUsdPriceFeedAddress]);
-    }
-      
-    log("=========================================================")
-  };
-
-  module.exports.tags = ["all", "fundme"]
-//   module.exports.tags = ['MyContract'];
+push{
+    4fm
 }
 ====================================================================================================
             learn about solidity style guide

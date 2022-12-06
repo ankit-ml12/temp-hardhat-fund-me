@@ -25,5 +25,8 @@ module.exports = {
     user :{
       default: 1,
     }
-  }
+  },
+  etherscan: {
+    apiKey:"FHYZMYZ7552U5SJAVCGHWWK25W95K6M4J3",
+},
 };
