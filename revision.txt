@@ -171,9 +171,38 @@ push{
 }
 ====================================================================================================
             learn about solidity style guide
-==================================================================================================
+1 pragma 
+2 imports
+3 error code
+4 Inteface
+5 library
+6 contract 
+----------------------
+Use netspack
+/** @title Fund Me
+ * @author Ankit
+ * @notice 
+ */
+----------------------
+Type declaration
+state variable
+event
+modidfier
+function
+
+======================================================================
+push{
+    5fm
+}
+
+============================
 delete present all file from test  folder
-and create folder by the name of staging
+and create folder by the name of staging and units in test folder
+
+in unit test we do all test locally 
+local test can be done variable:- 
+lo
+but incase of staging it is last test on testnet before deploying on main net
 
 create Fundme.test.js
 
