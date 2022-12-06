@@ -93,82 +93,37 @@ push {
 }
 ===========
 
-we create different contract for testing on localhost because it doesnot have eth to usd price feed address.
+✅we create different contract for testing on localhost because it doesnot have eth to usd price feed address.
 
-
+✅this contract only for local host
 so mkdir in contracts by the name of test
 insite it create file MockV3AggregatorV3.sol
 
-for mock address go to below address and copy
+✅for mock address go to below address and copy
 https://github.com/smartcontractkit/chainlink/blob/develop/contracts/src/v0.6/tests/MockV3Aggregator.sol
 
-instead of it we can take help of npm and write one line
+✅instead of it we can take help of npm and write one line
 
-// SPDX-License-Identifier: MIT
+✅// SPDX-License-Identifier: MIT
 pragma solidity^0.6.0;
 import "@chainlink/contracts/src/v0.6/tests/MockV3Aggregator.sol";
 
-both are the same thing
+✅both are the same thing
 
 ----------------------------------------------
-now to tackel differnet -differnt version on solidity
-we can add differnt version inside config.js
+✅now to tackel differnet -differnt version on solidity
+✅we can add differnt version inside config.js
 
   solidity: {
     compilers :[{version:"0.8.8"},{version:"0.6.6"}],
   },
   run compile command
   -----------------------------------------------
-  
-
-  now helper config.js become:-------
-  {
-const networkConfig = {
-    5:{
-        name:"goerli",
-        ethUsdPriceFeed:"0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e",
-    },
-    137 :{
-        name:"polygon",
-        ethUsdPriceFeed:"0x0715A7794a1dc8e42615F059dD6e406A6594651A",
-    }
-}
-//for local network
-const developmentChains = ["hardhat", "localhost"];
-const  DECIMALS = 8;
-const INITIAL_ANSWER= 200000000000;
-
-
-module.exports = {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER}
+  push{
+    "3fm"
   }
 
-
-  and 00 deploy mock become
-  const { network } = require("hardhat");
-const {networkConfig, developmentChains, DECIMALS, INITIAL_ANSWER} = require("../helper-hardhat-config")
-
-module.exports = async ({getNamedAccounts, deployments}) => {
-    const {deploy, log} = deployments;
-    const {deployer} = await getNamedAccounts();
-    const childId = network.config.chainId;
-
-
-    if(developmentChains.includes(chainId)){
-        log("Local network detected! deploying mocks....")
-        await deploy('MockV3Aggregator', {
-            contract :"MockV3Aggregator",
-            from: deployer,
-            log: true,
-            args: [DECIMALS, INITIAL_ANSWER], // we pass the price feed
-          });
-          log("Mock deployed!")
-          log("---------------------------------------------------------------")
-    }
-}
-
-module.exports.tags = ["all", "mocks"]
-
-===================================================
+======================================================
 we add tage so we can decide which contract we want to compile or deploy 
 use command yarn hardhat deploy --tags mocks
 
