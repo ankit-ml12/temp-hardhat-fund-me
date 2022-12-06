@@ -27,6 +27,16 @@ module.exports = {
     }
   },
   etherscan: {
-    apiKey:"FHYZMYZ7552U5SJAVCGHWWK25W95K6M4J3",
+    apiKey:process.env.ETHERSCAN_API,
 },
+ gasReporter:{
+  enabled: true,
+  outputFile: "gas-report.txt",
+  noColors: true,
+  currency: "USD",
+  // coinmarketcap: COIN_MARKET_API_KEY,
+  //// token : use for other network 
+// sign up https://pro.coinmarketcap.com/account/
+// to get api to convert gas into dollar
+}
 };
