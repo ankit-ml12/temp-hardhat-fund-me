@@ -236,4 +236,34 @@ push{
 }
 
 =========================
-learn from 11.45 from 
+gas optimisation:- 
+out state variable take space of 32 byte to get store
+same with happen with array but it pass though ethereum hashing operation to store in that storage
+
+but in case of constant or immutable char they do not take storage because they become part of you bytecode
+they are not permanent in contract 
+they store in function itself and get deleted once function is completed after running
+
+you can reed more about this in solidity documentation
+
+you can see gas code in opcodes
+so we append to show that we are saying this is storage variable
+insert s_ and i_
+
+when we use state variable to read the data it cost lots of gas so instead of using state variable
+
+we copy them in our local function storage and perform needed operation.
+
+====================================
+now at the end we do staging test
+create Fundme.staging.test.js
+
+run test on goerli networks
+============================================
+
+now inside scipt folder create fund.js
+file where we write code to run our code on local node
+
+push{
+  end
+}
