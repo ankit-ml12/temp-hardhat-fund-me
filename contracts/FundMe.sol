@@ -8,7 +8,7 @@ error FundMe__NotOwner();
 
 
 /** @title Fund Me
- * @author Ankit
+ * @author Ankit Patidar
  * @notice 
  */
 contract FundMe {
